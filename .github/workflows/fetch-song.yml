@@ -1,0 +1,35 @@
+# Copies the booth's theme song onto this website (music/theme-song.mp3), so the TV page can
+# keep it for offline use ("Save for offline"). Runs when this file changes, or by hand
+# (Actions -> Fetch theme song -> Run workflow), e.g. after the song changes.
+name: Fetch theme song
+on:
+  push:
+    paths: ['.github/workflows/fetch-song.yml']
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Song address'
+        default: 'https://od.lk/s/MjBfMzEwNjY4Mjdf/CIP_song.mp3'
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the song
+        env:
+          URL: ${{ github.event.inputs.url || 'https://od.lk/s/MjBfMzEwNjY4Mjdf/CIP_song.mp3' }}
+        run: |
+          mkdir -p music
+          curl -L --fail --retry 3 -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36" -o music/theme-song.mp3 "$URL"
+          ls -l music/theme-song.mp3
+          file music/theme-song.mp3
+          # Make sure it's really audio (not a web page)
+          file music/theme-song.mp3 | grep -Eiq 'audio|mpeg|ID3' || { echo "Not an audio file"; exit 1; }
+      - name: Save it to the website
+        run: |
+          git config user.name "Stan"
+          git config user.email "toematoe@gmail.com"
+          git add music/theme-song.mp3
+          git diff --cached --quiet && echo "Song unchanged" || (git commit -m "Theme song copy for the TV (offline)" && git push)
